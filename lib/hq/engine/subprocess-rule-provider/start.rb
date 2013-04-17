@@ -1,3 +1,5 @@
+require "hq/engine/subprocess-rule-provider/rule-provider"
+
 module HQ
 module Engine
 class SubProcessRuleProvider
