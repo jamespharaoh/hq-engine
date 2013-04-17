@@ -39,7 +39,7 @@ class SubProcessRuleProvider
 		chars = "abcdefghijklmnopqrstuvwxyz"
 		session_id = (0...16).map { chars[rand chars.length] }.join("")
 
-		return Session.new self, session_id
+		return SubProcessRuleProvider.new self, session_id
 
 	end
 
