@@ -1,4 +1,4 @@
-require "hq/engine/errors"
+require "hq/engine/rule-error"
 
 module HQ
 module Engine
