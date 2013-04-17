@@ -4,7 +4,7 @@ hq_project_name =
 	"hq-engine"
 
 hq_project_ver =
-	"0.0.6"
+	"0.0.7"
 
 hq_project_full =
 	"HQ engine"
