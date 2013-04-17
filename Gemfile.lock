@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    hq-engine (0.0.5)
+    hq-engine (0.0.6)
 
 GEM
   remote: https://rubygems.org/
