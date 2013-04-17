@@ -19,11 +19,10 @@ Gem::Specification.new do
 	spec.description = "HQ transformation engine"
 	spec.required_rubygems_version = ">= 1.3.6"
 
-	spec.rubyforge_project = "hq-core"
-
-	spec.add_dependency "rake", ">= 10.0.3"
+	spec.rubyforge_project = "hq-engine"
 
 	spec.add_development_dependency "cucumber", ">= 1.2.1"
+	spec.add_development_dependency "rake", ">= 10.0.3"
 	spec.add_development_dependency "rspec", ">= 2.12.0"
 	spec.add_development_dependency "rspec_junit_formatter"
 	spec.add_development_dependency "simplecov"
