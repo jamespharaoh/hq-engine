@@ -1,5 +1,3 @@
-require "hq/engine/subprocess-rule-provider/rule-provider"
-
 module HQ
 module Engine
 class SubProcessRuleProvider
@@ -57,10 +55,10 @@ class SubProcessRuleProvider
 			end
 		end
 
-		require "hq/engine/subprocess-rule-provider/rule-provider"
+		require "hq/engine/subprocess-rule-provider/self"
 
 		client =
-			RuleProvider.new \
+			SubProcessRuleProvider.new \
 				req_wr,
 				resp_rd
 
