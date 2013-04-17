@@ -60,7 +60,7 @@ class SubProcessRuleProvider
 		require "hq/engine/subprocess-rule-provider/rule-provider"
 
 		client =
-			Client.new \
+			RuleProvider.new \
 				req_wr,
 				resp_rd
 
