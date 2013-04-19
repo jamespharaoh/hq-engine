@@ -31,6 +31,9 @@ desc "Run acceptance tests"
 Cucumber::Rake::Task.new :features do
 	|task|
 
+	Dir.mkdir "features" \
+		unless Dir.exist? "features"
+
 	task.cucumber_opts = [
 
 		"features",
