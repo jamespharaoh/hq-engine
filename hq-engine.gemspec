@@ -4,7 +4,7 @@ hq_project_name =
 	"hq-engine"
 
 hq_project_ver =
-	"0.0.7"
+	File.read(File.expand_path("../.version", __FILE__))
 
 hq_project_full =
 	"HQ engine"

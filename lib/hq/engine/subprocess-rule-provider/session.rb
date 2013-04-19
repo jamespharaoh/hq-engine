@@ -57,11 +57,12 @@ class Session
 
 				arguments = reply["arguments"]
 
-				exception = XQueryError.new
-				exception.file = arguments["file"]
-				exception.line = arguments["line"]
-				exception.column = arguments["column"]
-				exception.message = arguments["error"]
+				exception =
+					RuleError.new \
+						arguments["file"],
+						arguments["line"],
+						arguments["column"],
+						arguments["error"]
 
 				raise exception
 

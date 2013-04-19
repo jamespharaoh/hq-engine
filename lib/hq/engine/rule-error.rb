@@ -6,10 +6,15 @@ class RuleError < RuntimeError
 	attr_accessor :file
 	attr_accessor :line
 	attr_accessor :column
-	attr_accessor :message
+	attr_accessor :error
 
-	def to_s
-		return "bananas"
+	def initialize file, line, column, error
+		super "%s:%s:%s %s" % [
+			@file = file,
+			@line = line,
+			@column = column,
+			@error = error,
+		]
 	end
 
 end
