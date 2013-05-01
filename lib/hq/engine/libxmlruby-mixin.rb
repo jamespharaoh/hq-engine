@@ -1,5 +1,8 @@
+require "xml"
+
 module HQ
 module Engine
+
 module LibXmlRubyMixin
 
 	def load_data_file filename
@@ -427,5 +430,6 @@ module LibXmlRubyMixin
 	end
 
 end
+
 end
 end

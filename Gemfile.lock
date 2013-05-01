@@ -16,6 +16,7 @@ GEM
     diff-lcs (1.2.4)
     gherkin (2.12.0)
       multi_json (~> 1.3)
+    libxml-ruby (2.6.0)
     multi_json (1.7.2)
     rake (10.0.4)
     rspec (2.13.0)
@@ -41,6 +42,7 @@ PLATFORMS
 DEPENDENCIES
   cucumber (>= 1.2.1)
   hq-engine!
+  libxml-ruby (>= 2.6.0)
   rake (>= 10.0.3)
   rspec (>= 2.12.0)
   rspec_junit_formatter

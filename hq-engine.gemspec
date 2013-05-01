@@ -39,6 +39,7 @@ Gem::Specification.new do
 	spec.add_dependency "multi_json", ">= 1.7.2"
 
 	spec.add_development_dependency "cucumber", ">= 1.2.1"
+	spec.add_development_dependency "libxml-ruby", ">= 2.6.0"
 	spec.add_development_dependency "rake", ">= 10.0.3"
 	spec.add_development_dependency "rspec", ">= 2.12.0"
 	spec.add_development_dependency "rspec_junit_formatter"
