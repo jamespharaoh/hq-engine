@@ -75,11 +75,22 @@ class RubyBackend
       end
 
       def find type
-        return @callback.call \
-          "search records",
-          {
-            "type" => type,
+
+        strings =
+          @callback.call \
+            "search records",
+            {
+              "type" => type,
+            }
+
+        nodes =
+          strings.map {
+            |string|
+            XML::Document.string(string).root
           }
+
+        return nodes
+
       end
 
       def write node
@@ -157,8 +168,8 @@ class TransformScript < Script
     result =
       transformer.rebuild
 
-require "pp"
-pp result
+    raise "Error" \
+      unless result[:success]
 
   end
 

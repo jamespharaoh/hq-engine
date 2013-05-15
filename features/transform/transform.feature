@@ -4,12 +4,20 @@ Feature: Transformer
   it produces a structured data tree as output. It depends on a backend which
   must be provided externally.
 
-  Scenario:
+  Background:
 
     Given a file "schema.xml":
       """
       <data>
         <schema name="input">
+          <id>
+            <text name="name"/>
+          </id>
+          <fields>
+            <text name="value"/>
+          </fields>
+        </schema>
+        <schema name="internal">
           <id>
             <text name="name"/>
           </id>
@@ -35,20 +43,41 @@ Feature: Transformer
       </data>
       """
 
-    And a file "rules/rule.rb":
+    And a file "rules/input-to-internal.rb":
       """
       # (: in input :)
-      # (: out output :)
+      # (: out internal :)
       require "xml"
       include XML
       proc do
         |hq|
         hq.find("input").each do
           |input|
-          output = Node.new "output"
-          output["name"] = input["name"]
-          output["value"] = input["value"].upcase
-          hq.write output
+          internal = Node.new "internal"
+          internal["name"] = input["name"]
+          internal["value"] = input["value"].upcase
+          hq.write internal
+        end
+      end
+      """
+
+    And a file "rules/internal-to-output.rb":
+      """
+      # (: in internal :)
+      # (: out output :)
+      require "xml"
+      include XML
+      proc do
+        |hq|
+        hq.find("internal").each do
+          |internal|
+          2.times do
+            |time|
+            output = Node.new "output"
+            output["name"] = "#{internal["name"]}-#{time}"
+            output["value"] = internal["value"]
+            hq.write output
+          end
         end
       end
       """
@@ -62,9 +91,21 @@ Feature: Transformer
       --output output
       """
 
+  Scenario: Success
+
     When I invoke transform with "default.args"
 
-    Then there should be a file "output/data/output/name.xml":
+    Then there should be a file "output/data/input/name.xml":
       """
-      <output name="name" value="VALUE"/>
+      <input name="name" value="value"/>
+      """
+
+    And there should be a file "output/data/internal/name.xml":
+      """
+      <internal name="name" value="VALUE"/>
+      """
+
+    And there should be a file "output/data/output/name-1.xml":
+      """
+      <output name="name-1" value="VALUE"/>
       """
