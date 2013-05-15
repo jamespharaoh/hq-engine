@@ -4,9 +4,15 @@ $hq_project_path =
 	File.expand_path "..", __FILE__
 
 module ::HQ
+
 	def self.project_param name
-		File.read("#{$hq_project_path}/.hq-dev/#{name}").strip
+		File.read("#{$hq_project_path}/etc/hq-dev/#{name}").strip
 	end
+
+	def self.project_include name
+		eval progect_param(name)
+	end
+
 end
 
 $hq_project_name =
@@ -20,6 +26,8 @@ $hq_project_full =
 
 $hq_project_desc =
 	HQ.project_param "description"
+
+Dir.mkdir "lib" unless Dir.exist? "lib"
 
 Gem::Specification.new do
 	|spec|
@@ -36,23 +44,28 @@ Gem::Specification.new do
 
 	spec.rubyforge_project = $hq_project_name
 
-	spec.add_dependency "multi_json", ">= 1.7.2"
+	HQ.project_param("dependencies").split("\n").each do
+		|line|
 
-	spec.add_development_dependency "cucumber", ">= 1.2.1"
-	spec.add_development_dependency "libxml-ruby", ">= 2.6.0"
-	spec.add_development_dependency "rake", ">= 10.0.3"
-	spec.add_development_dependency "rspec", ">= 2.12.0"
-	spec.add_development_dependency "rspec_junit_formatter"
-	spec.add_development_dependency "simplecov"
+		name, version = line.split " "
+		spec.add_dependency name, ">= #{version}"
+
+	end
+
+	HQ.project_param("development-dependencies").split("\n").each do
+		|line|
+
+		name, version = line.split " "
+		spec.add_development_dependency name, ">= #{version}"
+
+	end
 
 	spec.files = Dir[
-		"lib/**/*.rb",
+		*HQ.project_param("files").split("\n")
 	]
 
 	spec.test_files = Dir[
-		"features/**/*.feature",
-		"features/**/*.rb",
-		"spec/**/*-spec.rb",
+		*HQ.project_param("test-files").split("\n")
 	]
 
 	if Dir.exist? "bin"
@@ -60,6 +73,8 @@ Gem::Specification.new do
 			Dir.new("bin").entries - [ ".", ".." ]
 	end
 
-	spec.require_paths = [ "lib" ]
+	spec.require_paths = Dir[
+		"lib",
+	]
 
 end

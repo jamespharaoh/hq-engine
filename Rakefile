@@ -1,7 +1,13 @@
+#!/usr/bin/env ruby
+
 require "rspec/core/rake_task"
 require "cucumber/rake/task"
 
-task :default => [ :spec, :features ]
+default_targets = []
+default_targets << :spec if Dir.exist? "spec"
+default_targets << :features if Dir.exist? "features"
+
+task :default => default_targets
 
 desc "Run specs"
 RSpec::Core::RakeTask.new :spec do
@@ -31,9 +37,6 @@ desc "Run acceptance tests"
 Cucumber::Rake::Task.new :features do
 	|task|
 
-	Dir.mkdir "features" \
-		unless Dir.exist? "features"
-
 	task.cucumber_opts = [
 
 		"features",
@@ -49,3 +52,4 @@ Cucumber::Rake::Task.new :features do
 	].join " "
 
 end
+
