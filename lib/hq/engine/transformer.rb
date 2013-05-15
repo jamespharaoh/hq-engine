@@ -1,4 +1,5 @@
 require "hq/engine/libxmlruby-mixin"
+require "hq/engine/rule-error"
 
 module HQ
 module Engine
@@ -9,7 +10,7 @@ class Transformer
 	attr_accessor :parent
 
 	def logger() parent.logger end
-	def rule_provider() parent.rule_provider end
+	def transform_backend() parent.transform_backend end
 
 	attr_accessor :schema_file
 	attr_accessor :rules_dir
@@ -35,11 +36,18 @@ class Transformer
 		Dir.glob("#{rules_dir}/**/*").each do
 			|filename|
 
+			extensions_re =
+				"(?:%s)" % [
+					transform_backend.extensions
+						.map { |ext| Regexp.quote ext }
+						.join("|")
+				]
+
 			next unless filename =~ /^
 				#{Regexp.quote "#{rules_dir}/"}
 				(
 					(.+)
-					\. (xquery)
+					\. (#{extensions_re})
 				)
 			$/x
 
@@ -65,15 +73,15 @@ class Transformer
 
 	end
 
-	def init_rule_provider_session
+	def init_backend_session
 
-		@rule_provider_session =
-			rule_provider.session
+		@backend_session =
+			transform_backend.session
 
 		# add hq module
 		# TODO move this somewhere
 
-		@rule_provider_session.set_library_module \
+		@backend_session.set_library_module \
 			"hq",
 			"
 				module namespace hq = \"hq\";
@@ -105,7 +113,7 @@ class Transformer
 
 			remove_output
 
-			init_rule_provider_session
+			init_backend_session
 
 			@data = {}
 
@@ -186,7 +194,7 @@ class Transformer
 			path =~ /^ #{Regexp.quote include_dir} \/ (.+) $/x
 			name = $1
 
-			@rule_provider_session.set_library_module \
+			@backend_session.set_library_module \
 				name,
 				File.read(path)
 
@@ -318,12 +326,12 @@ class Transformer
 
 			begin
 
-				@rule_provider_session.compile_xquery \
+				@backend_session.compile_xquery \
 					rule[:source],
 					rule[:filename]
 
 				result_str =
-					@rule_provider_session.run_xquery \
+					@backend_session.run_xquery \
 						"<xml/>" \
 				do
 					|name, args|
