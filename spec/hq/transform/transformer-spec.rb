@@ -1,4 +1,4 @@
-require "hq/engine/transformer"
+require "hq/transform/transformer"
 
 module HQ
 module Engine
