@@ -1,20 +1,22 @@
+require "xml"
+
 require "hq/engine/libxmlruby-mixin"
+require "hq/transform/transformer"
 
 module HQ
 module Engine
+
 class Engine
 
 	include LibXmlRubyMixin
 
-	attr_accessor :main
+	attr_accessor :logger
+	attr_accessor :transform_backend
+
+	attr_accessor :config_dir
+	attr_accessor :work_dir
 
 	attr_accessor :results
-
-	def config_dir() main.config_dir end
-	def couch() main.couch end
-	def logger() main.logger end
-	def work_dir() main.work_dir end
-	def rule_provider() main.rule_provider end
 
 	def schema_file() "#{work_dir}/schema.xml" end
 
@@ -87,8 +89,6 @@ class Engine
 
 			# process abstract config
 
-			require "hq/engine/transformer"
-
 			transformer = HQ::Engine::Transformer.new
 			transformer.parent = self
 
@@ -117,7 +117,6 @@ class Engine
 					item_doc = XML::Document.string item_xml
 					item_doc.root
 				}
-
 
 			write_data_file schema_file, new_schemas
 
@@ -185,9 +184,7 @@ class Engine
 
 		logger.notice "loading input from database"
 
-		require "xml"
-
-		logger.time "loading input from database" do
+		logger.time "converting input" do
 
 			@input_docs = {}
 			@input_strs = {}
@@ -197,37 +194,23 @@ class Engine
 
 			FileUtils.mkdir_p "#{work_dir}/input", :mode => 0700
 
-			rows = couch.view("root", "by_type")["rows"]
 			values_by_type = Hash.new
 
-			legacy = false
+			inputs = YAML.load File.read "#{work_dir}/input.yaml"
 
-			rows.each do |row|
+			inputs.each do
+				|input|
 
-				if legacy
+				id = input["id"]
+				type = input["type"]
+				value = input["value"]
 
-					type = row["value"]["mandar_type"]
-					value = row["value"]
-
-				else
-
-					type = row["value"]["type"]
-					value = row["value"]["value"]
-
-					row["id"] =~ /^current\/(.+)$/
-					value["_id"] = $1
-
-				end
+				value["_id"] = id
 
 				values_by_type[type] ||= Hash.new
-				values_by_type[type][value["_id"]] = value
-
-				main.continue
+				values_by_type[type][id] = value
 
 			end
-
-			change =
-				staged_change
 
 			schema =
 				load_schema_file "#{work_dir}/schema.xml"
@@ -251,20 +234,6 @@ class Engine
 				input_doc = XML::Document.new
 				input_doc.root = XML::Node.new "data"
 
-				if change
-					change["items"].each do |key, item|
-						case item["action"]
-						when "create", "update"
-							next unless key =~ /^#{Regexp.quote type}\//
-							values[key] = item["record"]
-						when "delete"
-							values.delete key
-						else
-							raise "Error"
-						end
-					end
-				end
-
 				sorted_values =
 					values.values.sort {
 						|a,b|
@@ -284,27 +253,6 @@ class Engine
 			end
 
 		end
-
-	end
-
-	def staged_change
-
-		return nil \
-			unless $deploy_mode == :staged
-
-		locks =
-			couch.get "mandar-locks"
-
-		return nil \
-			unless locks
-
-		change =
-			locks["changes"][$deploy_role]
-
-		return nil \
-			unless change
-
-		return change
 
 	end
 
@@ -351,5 +299,6 @@ class Engine
 
 
 end
+
 end
 end

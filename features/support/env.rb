@@ -1,8 +1,10 @@
 require "hq/cucumber/command"
 require "hq/cucumber/temp-dir"
 
+require "hq/engine/engine-script"
 require "hq/transform/transform-script"
 
-include HQ::Transform
+include HQ
 
-$commands["transform"] = TransformScript
+$commands["engine"] = Engine::EngineScript
+$commands["transform"] = Transform::TransformScript
