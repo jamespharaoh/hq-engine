@@ -4,6 +4,8 @@ module HQ
 module Engine
 class SubProcessRuleProvider
 
+	attr_accessor :extensions
+
 	def initialize req_wr, resp_rd
 
 		@state = :error
