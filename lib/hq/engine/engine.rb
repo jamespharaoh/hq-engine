@@ -1,4 +1,5 @@
 require "xml"
+require "yaml"
 
 require "hq/engine/libxmlruby-mixin"
 require "hq/transform/transformer"
