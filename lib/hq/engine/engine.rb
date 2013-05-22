@@ -183,7 +183,7 @@ class Engine
 
 	def input_dump
 
-		logger.notice "loading input from database"
+		logger.notice "converting input"
 
 		logger.time "converting input" do
 
