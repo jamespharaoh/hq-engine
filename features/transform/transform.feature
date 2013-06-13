@@ -1,3 +1,4 @@
+@temp-dir
 Feature: Transformer
 
   The transformer takes a schema, a set of data files, and a list of rules, and
