@@ -68,7 +68,7 @@ class TransformScript < Tools::BaseScript
     transformer.output_dir = @opts[:output]
 
     result =
-      transformer.rebuild
+      transformer.transform
 
     raise "Error" \
       unless result[:success]

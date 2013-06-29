@@ -20,6 +20,7 @@ class Engine
 	attr_accessor :results
 
 	def schema_file() "#{work_dir}/schema.xml" end
+	def bootstrap_schema_file() "#{config_dir}/bootstrap-schema.xml" end
 
 	def abstract
 
@@ -54,21 +55,10 @@ class Engine
 
 		return if File.exists? schema_file
 
-		logger.trace "writing schema.xml (empty)"
+		logger.trace "using bootstrap schema"
 
-		File.open schema_file, "w" do |f|
-			f.print "<data>\n"
-			f.print "\t<schema name=\"schema\">\n"
-			f.print "\t\t<id>\n"
-			f.print "\t\t\t<text name=\"name\"/>\n"
-			f.print "\t\t</id>\n"
-			f.print "\t\t<fields>\n"
-			f.print "\t\t</fields>\n"
-			f.print "\t\t<table>\n"
-			f.print "\t\t\t<col name=\"name\"/>\n"
-			f.print "\t\t</table>\n"
-			f.print "\t</schema>\n"
-			f.print "</data>\n"
+		File.open schema_file, "w" do |file_io|
+			file_io.write File.read(bootstrap_schema_file)
 		end
 
 	end
@@ -102,7 +92,7 @@ class Engine
 			transformer.output_dir = "#{work_dir}/output"
 
 			transform_result =
-				transformer.rebuild
+				transformer.transform
 
 			# write new schema file
 
@@ -111,7 +101,7 @@ class Engine
 			new_schemas =
 				transformer.data.select {
 					|item_id, item_xml|
-					item_id =~ /^(schema|schema-option|abstract-rule)\//
+					item_id =~ /^(schema|schema-option|abstract-rule|transform)\//
 				}
 				.map {
 					|item_id, item_xml|

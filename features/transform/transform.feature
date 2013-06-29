@@ -10,30 +10,69 @@ Feature: Transformer
     Given a file "schema.xml":
       """
       <data>
+
         <schema name="input">
+
           <id>
             <text name="name"/>
           </id>
+
           <fields>
             <text name="value"/>
           </fields>
+
         </schema>
+
         <schema name="internal">
+
           <id>
             <text name="name"/>
           </id>
+
           <fields>
             <text name="value"/>
           </fields>
+
         </schema>
+
         <schema name="output">
+
           <id>
             <text name="name"/>
           </id>
+
           <fields>
             <text name="value"/>
           </fields>
+
         </schema>
+
+        <transform
+          name="input-to-internal"
+          rule="input-to-internal">
+
+          <input name="input"/>
+          <output name="internal"/>
+
+          <match type="input">
+            <field name="name" as="name"/>
+          </match>
+
+        </transform>
+
+        <transform
+          name="internal-to-output"
+          rule="internal-to-output">
+
+          <input name="internal"/>
+          <output name="output"/>
+
+          <match type="internal">
+            <field name="name" as="name"/>
+          </match>
+
+        </transform>
+
       </data>
       """
 
@@ -46,40 +85,39 @@ Feature: Transformer
 
     And a file "rules/input-to-internal.rb":
       """
-      # (: in input :)
-      # (: out internal :)
       require "xml"
-      include XML
-      proc do
-        |hq|
-        hq.find("input").each do
-          |input|
-          internal = Node.new "internal"
-          internal["name"] = input["name"]
-          internal["value"] = input["value"].upcase
-          hq.write internal
-        end
+
+      proc do |hq|
+
+        input = hq.get "input", hq.input["name"]
+
+        internal = XML::Node.new "internal"
+        internal["name"] = input["name"]
+        internal["value"] = input["value"].upcase
+
+        hq.write internal
+
       end
       """
 
     And a file "rules/internal-to-output.rb":
       """
-      # (: in internal :)
-      # (: out output :)
       require "xml"
-      include XML
-      proc do
-        |hq|
-        hq.find("internal").each do
-          |internal|
-          2.times do
-            |time|
-            output = Node.new "output"
-            output["name"] = "#{internal["name"]}-#{time}"
-            output["value"] = internal["value"]
-            hq.write output
-          end
+
+      proc do |hq|
+
+        internal = hq.get "internal", hq.input["name"]
+
+        2.times do |time|
+
+          output = XML::Node.new "output"
+          output["name"] = "#{internal["name"]}-#{time}"
+          output["value"] = internal["value"]
+
+          hq.write output
+
         end
+
       end
       """
 
@@ -110,3 +148,5 @@ Feature: Transformer
       """
       <output name="name-1" value="VALUE"/>
       """
+
+# vim: et ts=2

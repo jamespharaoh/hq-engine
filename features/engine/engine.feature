@@ -3,64 +3,91 @@ Feature: Engine
 
   Background:
 
-    Given a file "config/rules/input-schema.rb":
+    Given a file "config/bootstrap-schema.xml":
       """
-      # (: out schema :)
-      require "xml"
-      proc do |hq|
-        doc = XML::Document.string '
-          <schema name="input">
-            <id><text name="name"/></id>
-            <fields><text name="value"/></fields>
-          </schema>
-        '
-        hq.write doc.root
-      end
+      <data>
+
+        <schema name="schema">
+          <id><text name="name"/></id>
+          <fields/>
+        </schema>
+
+        <schema name="transform">
+          <id><text name="name"/></id>
+          <fields/>
+        </schema>
+
+        <transform name="bootstrap" rule="bootstrap">
+          <output name="schema"/>
+          <output name="transform"/>
+        </transform>
+
+      </data>
       """
 
-    And a file "config/rules/schema-schema.rb":
+    Given a file "config/rules/bootstrap.rb":
       """
-      # (: out schema :)
       require "xml"
-      proc do |hq|
-        doc = XML::Document.string '
-          <schema name="schema">
-            <id><text name="name"/></id>
-            <fields/>
-          </schema>
-        '
-        hq.write doc.root
-      end
-      """
 
-    And a file "config/rules/output-schema.rb":
-      """
-      # (: out schema :)
-      require "xml"
       proc do |hq|
+
         doc = XML::Document.string '
-          <schema name="output">
-            <id><text name="name"/></id>
-            <fields><text name="value"/></fields>
-          </schema>
+          <data>
+
+            <schema name="input">
+              <id><text name="name"/></id>
+              <fields><text name="value"/></fields>
+            </schema>
+
+            <schema name="output">
+              <id><text name="name"/></id>
+              <fields><text name="value"/></fields>
+            </schema>
+
+            <schema name="schema">
+              <id><text name="name"/></id>
+              <fields/>
+            </schema>
+
+            <schema name="transform">
+              <id><text name="name"/></id>
+              <fields/>
+            </schema>
+
+            <transform name="bootstrap" rule="bootstrap">
+              <output name="schema"/>
+              <output name="transform"/>
+            </transform>
+
+            <transform name="input-to-output" rule="input-to-output">
+              <input name="input"/>
+              <output name="output"/>
+              <match type="input"><field name="name" as="name"/></match>
+            </transform>
+
+          </data>
         '
-        hq.write doc.root
+
+        doc.root.each do |child|
+          hq.write child
+        end
+
       end
       """
 
     And a file "config/rules/input-to-output.rb":
       """
-      # (: in input :)
-      # (: out output :)
       require "xml"
+
       proc do |hq|
-        hq.find("input").each do
-          |input|
-          output = XML::Node.new "output"
-          output["name"] = input["name"]
-          output["value"] = input["value"].upcase
-          hq.write output
-        end
+
+        input = hq.get "input", hq.input["name"]
+
+        output = XML::Node.new "output"
+        output["name"] = input["name"]
+        output["value"] = input["value"].upcase
+        hq.write output
+
       end
       """
 
@@ -127,3 +154,4 @@ Feature: Engine
       <input name="name" value="value"/>
       """
 
+# vim: et ts=2

@@ -16,6 +16,9 @@ class RubyBackend
     def set_library_module name, content
     end
 
+    def hq_binding
+    end
+
     def compile_xquery source, filename
 
       @source = source
@@ -29,6 +32,7 @@ class RubyBackend
 
       context = Context.new
       context.callback = callback
+      context.input = input
 
       @proc.call context
 
@@ -47,6 +51,7 @@ class RubyBackend
 
       attr_accessor :callback
       attr_accessor :results
+      attr_accessor :input
 
       def initialize
         @results = []
@@ -71,6 +76,65 @@ class RubyBackend
 
       end
 
+      def get_by_id id
+
+        strings = 
+          @callback.call \
+            "get record by id",
+            { "id" => id }
+
+        nodes =
+          strings.map {
+            |string|
+            XML::Document.string(string).root
+          }
+
+        return nodes[0]
+
+      end
+
+      def get_by_id_parts type, id_parts
+
+        strings = 
+          @callback.call \
+            "get record by id parts",
+            {
+              "type" => type,
+              "id parts" => id_parts,
+            }
+
+        nodes =
+          strings.map {
+            |string|
+            XML::Document.string(string).root
+          }
+
+        return nodes[0]
+
+      end
+
+      def get *args
+
+        if args.length == 1 && args[0].is_a?(String)
+
+          get_by_id args[0]
+
+        elsif args.length == 1 && args[0].is_a?(Array)
+
+          get_by_id_parts args[0][0], args[0][1..-1]
+
+        elsif args.length > 1
+
+          get_by_id_parts args[0], args[1..-1]
+
+        else
+
+          raise "Error 8891238749"
+
+        end
+
+      end
+
       def write node
         @results << node
       end
@@ -83,3 +147,5 @@ end
 
 end
 end
+
+# vim: et ts=2

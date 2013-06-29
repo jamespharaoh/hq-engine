@@ -57,19 +57,97 @@ class Transformer
 			rule[:filename] = "#{$2}.#{$3}"
 			rule[:path] = filename
 			rule[:source] = File.read rule[:path]
-			rule[:in] = []
-			rule[:out] = []
-			rule[:source].scan(
-				/\(: (in|out) ([a-z0-9]+(?:-[a-z0-9]+)*) :\)$/
-			).each do |type, name|
-				rule[type.to_sym] << name
-			end
 
 			@rules[rule[:name]] = rule
 
 		end
 
 		@rules = Hash[@rules.sort]
+
+	end
+
+	def read_transforms
+
+		got_error = false
+
+		@transforms = {}
+
+		@schemas.each do
+			|key, transform_elem|
+
+			next unless key =~ /^transform\//
+
+			transform = {
+				name: transform_elem["name"],
+				rule: transform_elem["rule"],
+			}
+
+			transform[:in] =
+				transform_elem.find("input").map {
+					|input_elem|
+					input_elem["name"]
+				}
+
+			transform[:out] =
+				transform_elem.find("output").map {
+					|input_elem|
+					input_elem["name"]
+				}
+
+			transform[:matches] =
+				transform_elem.find("match").map do
+					|match_elem|
+
+					match = {
+						type: match_elem["type"],
+						fields: match_elem.find("field").map do
+							|field_elem|
+
+							field = {
+								name: field_elem["name"],
+								as: field_elem["as"],
+							}
+
+							field
+
+						end,
+					}
+
+					unless transform[:in].include? match[:type]
+
+						logger.error "transform '%s' matches type '%s' which " \
+							"is not listed as an input" % [
+								transform[:name],
+								match[:type],
+							]
+
+						got_error = true
+
+					end
+
+					match
+
+				end
+
+			@transforms[transform_elem["name"]] =
+				transform
+
+			# sanity check
+
+			unless @rules[transform[:rule]]
+
+				logger.error "no such rule %s for transform %s" % [
+					transform[:rule],
+					transform[:name],
+				]
+
+				got_error = true
+
+			end
+
+		end
+
+		return ! got_error
 
 	end
 
@@ -105,7 +183,7 @@ class Transformer
 
 	end
 
-	def rebuild
+	def transform
 
 		logger.notice "performing transformation"
 
@@ -122,15 +200,17 @@ class Transformer
 			load_input
 			load_includes
 
-			@remaining_rules =
-				@rules.clone
+			read_transforms or return false
+
+			@remaining_transforms =
+				@transforms.clone
 
 			pass_number = 0
 
 			loop do
 
 				num_processed =
-					rebuild_pass pass_number
+					transform_pass pass_number
 
 				break if num_processed == 0
 
@@ -141,13 +221,13 @@ class Transformer
 		end
 
 		return {
-			:success => @remaining_rules.empty?,
-			:remaining_rules => @remaining_rules.keys,
+			:success => @remaining_transforms.empty?,
+			:remaining_transforms => @remaining_transforms.keys,
 			:missing_types =>
 				(
-					@remaining_rules
+					@remaining_transforms
 						.values
-						.map { |rule| rule[:in] }
+						.map { |transform| transform[:in] }
 						.flatten
 						.uniq
 						.sort
@@ -212,15 +292,15 @@ class Transformer
 
 	end
 
-	def rebuild_pass pass_number
+	def transform_pass pass_number
 
 		logger.debug "beginning pass #{pass_number}"
 
 		@incomplete_types =
 			Set.new(
-				@remaining_rules.map {
-					|rule_name, rule|
-					rule[:out]
+				@remaining_transforms.map {
+					|transform_name, transform|
+					transform[:out]
 				}.flatten.uniq.sort
 			)
 
@@ -229,25 +309,25 @@ class Transformer
 				@schemas.keys
 			)
 
-		rules_for_pass =
+		transforms_for_pass =
 			Hash[
-				@remaining_rules.select do
-					|rule_name, rule|
+				@remaining_transforms.select do
+					|transform_name, transform|
 
 					missing_input_types =
-						rule[:in].select {
+						transform[:in].select {
 							|in_type|
 							@incomplete_types.include? in_type
 						}
 
 					missing_input_schemas =
-						rule[:in].select {
+						transform[:in].select {
 							|in_type|
 							! @schema_types.include? "schema/#{in_type}"
 						}
 
 					missing_output_schemas =
-						rule[:out].select {
+						transform[:out].select {
 							|out_type|
 							! @schema_types.include? "schema/#{out_type}"
 						}
@@ -274,7 +354,7 @@ class Transformer
 
 					unless messages.empty?
 						logger.debug "rule %s: %s" % [
-							rule_name,
+							transform[:name],
 							messages.join("; "),
 						]
 					end
@@ -286,11 +366,11 @@ class Transformer
 
 		num_processed = 0
 
-		rules_for_pass.each do
-			|rule_name, rule|
+		transforms_for_pass.each do
+			|transform_name, transform|
 
 			used_types =
-				rebuild_one rule
+				transform_loop transform
 
 			missing_types =
 				used_types.select {
@@ -301,7 +381,7 @@ class Transformer
 			raise "Error" unless missing_types.empty?
 
 			if missing_types.empty?
-				@remaining_rules.delete rule_name
+				@remaining_transforms.delete transform_name
 				num_processed += 1
 			end
 
@@ -311,114 +391,154 @@ class Transformer
 
 	end
 
-	def rebuild_one rule
+	def transform_loop transform
 
-		rule_name = rule[:name]
-		rule_type = rule[:type]
+		rule = @rules[transform[:rule]]
 
-		logger.debug "rebuilding rule #{rule_name}"
-		logger.time "rebuilding rule #{rule_name}" do
+		logger.debug "running transform #{transform[:name]}"
+		logger.time "running transform #{transform[:name]}" do
 
-			# perform query
+			inputs = get_inputs transform
 
-			used_types = Set.new
-			result_str = nil
+			inputs.each do
+				|input|
 
-			begin
-
-				@backend_session.compile_xquery \
-					rule[:source],
-					rule[:filename]
-
-				result_str =
-					@backend_session.run_xquery \
-						"<xml/>" \
-				do
-					|name, args|
-
-					case name
-
-					when "get record by id"
-						args["id"] =~ /^([^\/]+)\//
-						used_types << $1
-						record = @data[args["id"]]
-						record ? [ record ] : []
-
-					when "get record by id parts"
-						used_types << args["type"]
-						id = [ args["type"], *args["id parts"] ].join "/"
-						record = @data[id]
-						record ? [ record ] : []
-
-					when "search records"
-						used_types << args["type"]
-						regex = /^#{Regexp.escape args["type"]}\//
-						@data \
-							.select { |id, record| id =~ regex }
-							.sort
-							.map { |id, record| record }
-
-					else
-						raise "No such function #{name}"
-
-					end
-
-				end
-
-#puts "USED: #{used_types.to_a.join " "}"
-#puts "INCOMPLETE: #{@incomplete_types.to_a.join " "}"
-				missing_types = used_types & @incomplete_types
-puts "MISSING: #{missing_types.to_a.join " "}" unless missing_types.empty?
-				return missing_types unless missing_types.empty?
-
-			rescue RuleError => exception
-
-				logger.die "%s:%s:%s %s" % [
-					exception.file,
-					exception.line,
-					exception.column,
-					exception.message
-				]
-
-			rescue => exception
-				logger.error "%s: %s" % [
-					exception.class,
-					exception.to_s,
-				]
-				logger.detail exception.backtrace.join("\n")
-				FileUtils.touch "#{work_dir}/error-flag"
-				raise "error compiling #{rule[:path]}"
-			end
-
-			# process output
-
-			result_doms =
-				load_data_string result_str
-
-			result_doms.each do
-				|item_dom|
-
-				begin
-
-					item_id =
-						get_record_id_long \
-							@schemas,
-							item_dom
-
-				rescue => e
-
-					logger.die "record id error for %s created by %s" % [
-						item_dom.name,
-						rule_name,
-					]
-
-				end
-
-				store_data item_dom
+				transform_once transform, rule, input
 
 			end
 
 			return []
+
+		end
+
+	end
+
+	def get_inputs transform
+
+		if transform[:matches].empty?
+			return [{}]
+		end
+
+		inputs_set = Set.new
+
+		transform[:matches].each do
+			|match|
+
+			@data.each do
+				|id, record|
+
+				next unless id =~ /^#{Regexp.quote match[:type]}\//
+
+				input = {}
+
+				match[:fields].each do
+					|field|
+
+					input[field[:as]] =
+						record[field[:name]]
+
+				end
+
+				inputs_set << input
+
+			end
+
+		end
+
+		return inputs_set.to_a.sort
+
+	end
+
+	def transform_once transform, rule, input
+
+		used_types = Set.new
+		result_str = nil
+
+		begin
+
+			@backend_session.compile_xquery \
+				rule[:source],
+				rule[:filename]
+
+			result_str =
+				@backend_session.run_xquery \
+					input \
+			do
+				|name, args|
+
+				case name
+
+				when "get record by id"
+					args["id"] =~ /^([^\/]+)\//
+					used_types << $1
+					record = @data[args["id"]]
+					record ? [ record ] : []
+
+				when "get record by id parts"
+					used_types << args["type"]
+					id = [ args["type"], *args["id parts"] ].join "/"
+					record = @data[id]
+					record ? [ record ] : []
+
+				when "search records"
+					used_types << args["type"]
+					regex = /^#{Regexp.escape args["type"]}\//
+					@data \
+						.select { |id, record| id =~ regex }
+						.sort
+						.map { |id, record| record }
+
+				else
+					raise "No such function #{name}"
+
+				end
+
+			end
+
+		rescue RuleError => exception
+
+			logger.die "%s:%s:%s %s" % [
+				exception.file,
+				exception.line,
+				exception.column,
+				exception.message
+			]
+
+		rescue => exception
+			logger.error "%s: %s" % [
+				exception.class,
+				exception.to_s,
+			]
+			logger.detail exception.backtrace.join("\n")
+			FileUtils.touch "#{work_dir}/error-flag"
+			raise "error compiling #{rule[:path]}"
+		end
+
+		# process output
+
+		result_doms =
+			load_data_string result_str
+
+		result_doms.each do
+			|item_dom|
+
+			begin
+
+				item_id =
+					get_record_id_long \
+						@schemas,
+						item_dom
+
+			rescue => e
+
+				logger.die "record id error for %s created by %s" % [
+					item_dom.name,
+					transform_name,
+				]
+
+			end
+
+			store_data item_dom
 
 		end
 
